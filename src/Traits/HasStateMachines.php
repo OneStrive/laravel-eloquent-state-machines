@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Javoscript\MacroableModels\Facades\MacroableModels;
+use ReflectionClass;
 
 
 /**
@@ -20,10 +21,12 @@ trait HasStateMachines
 {
     public static function bootHasStateMachines()
     {
-        $model = new static();
+        // Laravel 13 forbids instantiating a model while it is still booting, so read the
+        // declared state machines through reflection instead of `new static()`.
+        $stateMachines = (new ReflectionClass(static::class))->getDefaultProperties()['stateMachines'] ?? [];
 
-        collect($model->stateMachines)
-            ->each(function ($_, $field) use ($model) {
+        collect($stateMachines)
+            ->each(function ($_, $field) {
                 MacroableModels::addMacro(static::class, $field, function () use ($field) {
                     $stateMachine = new $this->stateMachines[$field]($field, $this);
                     return new State($this->{$stateMachine->field}, $stateMachine);
